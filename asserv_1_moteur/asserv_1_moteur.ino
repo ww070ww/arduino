@@ -159,6 +159,7 @@ void setup() {
   Serial.println(F("\nEntrez la puissance du moteur :"));
   while (Serial.available() && Serial.read()); // empty buffer
   while (!Serial.available());                 // wait for data
+  
   while (Serial.available() && Serial.read()); // empty buffer again
   
   
@@ -297,22 +298,18 @@ void loop() {
       // read the incoming byte:
 
       int incomingByte = Serial.read();
-      //if (((char)incomingByte)=='p') {
-      //Serial.println("totot");
-      //}
-      //delay(1000);
-
+      
       switch ((char)incomingByte) {
 
-      case 'p':        
+      case 'p':                                      // selection du coefficient proportionnel
         selection_coeff=0;  
         break;
       case 'i':
-        selection_coeff=1;
+        selection_coeff=1;                           // selection du coefficient intégral
         break;
       case 'd':
-        selection_coeff=2;
-        break;
+        selection_coeff=2;                          //  selection du coefficient dérivé
+        break; 
       case 'o':
         selection_coeff=3;
         break;
@@ -320,7 +317,7 @@ void loop() {
         selection_coeff=4;
         break;
       case '0':
-        mon_buffer_serie+='0';
+        mon_buffer_serie+='0';                         // mise en mémoire des charactères "123456789.-"
         break;
       case '1':
         mon_buffer_serie+='1';
@@ -355,7 +352,7 @@ void loop() {
       case '-':
         mon_buffer_serie+='-';
         break;
-      case 'm':   // montrer
+      case 'm':                                 // montrer l'état du buffer
         Serial.println(mon_buffer_serie);
         break;  
       case 's': // supprimer
