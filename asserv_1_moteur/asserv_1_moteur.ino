@@ -69,34 +69,24 @@ double pitch_mesure = 0; //input PID
 double pitch_consigne= 0; // setpoint PID
 
 Servo moteur_1;             // commande des moteurs
-
+int pin_moteur_1=5;
 int p_moteurs=800;   // valeur de la largeur impulsion entre 800 et 1900us
 double deltaP_moteur=0;  // valeur de la correction si erreur ouput PID
-
-
-const int pin_potar_1 = 15;
-
-const int seuil=5;
-
-int tension_1 = 0;  // tension aux bornesdes CAN
 
 
 double Kp = 0.7;
 double Ki = 0.2;
 double Kd = 0.2;
-// reglage offset vitesse moteur
 
-int offset=-34;
-
-boolean reglage = false;
 
 // variables permettant le changement des coefficients du correcteur
 
 String mon_buffer_serie="";
 int selection_coeff=0;
-
 int count_println =0;
 int nb_println=100;
+
+
 //Specify the links and initial tuning parameters
 PID myPID(&pitch_mesure, &deltaP_moteur, &pitch_consigne,Kp,Ki,Kd, DIRECT);
 
@@ -132,16 +122,16 @@ void setup() {
 
   // initialize device
 
-  // mes initialisations
+  // Initialisation des paramètres du moteur
 
-  moteur_1.attach(5);        // decision arbitraire du moteur 1
+  moteur_1.attach(pin_moteur_1);        
   moteur_1.writeMicroseconds(p_moteurs);
 
   delay(100);
 
   // initialisation du PID
 
-  myPID.SetOutputLimits(-50, 50);
+  myPID.SetOutputLimits(-50, 50); // borne sup et inf du correcteur
  
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
@@ -270,25 +260,8 @@ void loop() {
       Serial.println(pitch_consigne-pitch_mesure);
       count_println=0;
     }
-    // 2 modes de fonctionnement, le mode réglage et le mode normale
-
-    if (reglage) {
-      moteur_1.writeMicroseconds(p_moteurs+offset);
-      //moteur_2.writeMicroseconds(p_moteurs);
-    }
-    else {
-
-
-      // commande du moteur suivant l'erreur
-      if (deltaP_moteur>0) {
-        moteur_1.writeMicroseconds(p_moteurs+offset+abs(deltaP_moteur));
-       // moteur_2.writeMicroseconds(p_moteurs);
-      }
-      else {
-        moteur_1.writeMicroseconds(p_moteurs+offset);
-        //moteur_2.writeMicroseconds(p_moteurs+abs(deltaP_moteur));
-      }
-    }
+   
+   
     /*
 
      changement a la volee de coefficient Kp Ki et Kd
@@ -310,14 +283,11 @@ void loop() {
       case 'd':
         selection_coeff=2;                          //  selection du coefficient dérivé
         break; 
-      case 'o':
-        selection_coeff=3;
-        break;
-      case 'r':
-        selection_coeff=4;
+      case 'v':
+        selection_coeff=3;                          // réglage de la vitesse de base du moteur
         break;
       case '0':
-        mon_buffer_serie+='0';                         // mise en mémoire des charactères "123456789.-"
+        mon_buffer_serie+='0';                      // mise en mémoire des charactères "123456789.-"
         break;
       case '1':
         mon_buffer_serie+='1';
@@ -358,10 +328,12 @@ void loop() {
       case 's': // supprimer
         mon_buffer_serie="";                    // remise a zero du buffer
         break;  
-      case'w':                // write                // envois du coeff
+      case'w':                                  // écrit le coeff courant "write"
         {
           mon_buffer_serie+="y";
-          char *endp;
+          
+		  // conversion  de la chaine de caractère en double
+		  char *endp;
           char buf[mon_buffer_serie.length()];
           mon_buffer_serie.toCharArray(buf,mon_buffer_serie.length());
           double coeff=strtod(buf,&endp);       
@@ -380,17 +352,13 @@ void loop() {
             Kd=coeff;
             break;
           case 3:
-            Serial.println("offset:"+mon_buffer_serie);
-            offset=coeff;
-            break;
-          case 4:
-            Serial.println("changement du mode de fonctionnement");
-            reglage=!reglage;
+            Serial.println("vitesse moteur:"+mon_buffer_serie);
+            p_moteur=coeff;
             break;
           default:
             delayMicroseconds(1);
           }
-          mon_buffer_serie="";
+          mon_buffer_serie="";         // remise à zéro du buffer
         }        
         break;
       default:
