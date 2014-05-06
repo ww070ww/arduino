@@ -72,12 +72,12 @@ double pitch_consigne= 0;   // setpoint PID valeur de consigne
 
 Servo moteur_1;             // commande des moteurs
 int pin_moteur_1=5;
-int p_moteurs=P_MOTEUR_INIT;          // valeur de la largeur impulsion entre 800 et 1900us
+int p_moteurs=960;          // valeur de la largeur impulsion entre 800 et 1900us
 double deltaP_moteur=0;     // valeur de la correction si erreur ouput PID
 
 
-double Kp = 0.7;
-double Ki = 0.2;
+double Kp = 1;
+double Ki = 0.4;
 double Kd = 0.2;
 
 // état du moteur arrêté ou en marche
@@ -136,8 +136,8 @@ void setup() {
 
   // initialisation du PID
 
-  myPID.SetOutputLimits(-50, 50); // borne sup et inf du correcteur
- 
+  myPID.SetOutputLimits(-100, 100); // borne sup et inf du correcteur
+
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
 
@@ -150,14 +150,13 @@ void setup() {
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
   // initialisation de la puissance du moteur
-  
-  Serial.println(F("\nEntrez la puissance du moteur :"));
+/*
+  Serial.println(F("\nEntrez une lettre pour commencer :"));
   while (Serial.available() && Serial.read()); // empty buffer
   while (!Serial.available());                 // wait for data
-  
   while (Serial.available() && Serial.read()); // empty buffer again
-  
-  
+*/
+
   // load and configure the DMP
   Serial.println(F("Initializing DMP..."));
   devStatus = mpu.dmpInitialize();
@@ -261,43 +260,47 @@ void loop() {
       Serial.print(ypr[1] * 180/M_PI);
       Serial.print("\tdelta :\t");
       Serial.print(deltaP_moteur);
-      Serial.print("\terreur :\t");
-      Serial.println(pitch_consigne-pitch_mesure);
+      Serial.print("\terreur angle :\t");
+      Serial.print(pitch_consigne-pitch_mesure);
+      Serial.print("\tvitesse :\t");
+      Serial.println(p_moteurs);
       count_println=0;
     }
-   /*
+    /*
    commande du moteur en fonction de l'erreur mesurée
-   */
-   if (etat_moteur) {
-     if (!etat_moteur_precedent) {              // on va a la vitesse de consigne en utilisant une rampe
-	     int p_moteurs_temp=P_MOTEUR_INIT; 
-		 while (p_moteur_temp<=p_moteur) {
-		     moteur_1.writeMicroseconds(p_moteur_temp);
-			 p_moteur_temp+=50;
-			 delayMicroseconds(1000);
-			 }
-			 
-		 }
-	 /*
+     */
+    if (etat_moteur) {
+      if (!etat_moteur_precedent) {              // on va a la vitesse de consigne en utilisant une rampe
+        int p_moteurs_temp=P_MOTEUR_INIT; 
+        while (p_moteurs_temp<=p_moteurs) {
+          moteur_1.writeMicroseconds(p_moteurs_temp);
+          p_moteurs_temp+=50;
+          delayMicroseconds(1000);
+        }
+
+      }
+      /*
 	 application de la correction
-	 */
-	 if (deltaP_moteur>0) {
+       	 */
+      if (deltaP_moteur>0) {
         moteur_1.writeMicroseconds(p_moteurs+abs(deltaP_moteur));
       }
       else {
         moteur_1.writeMicroseconds(p_moteurs-abs(deltaP_moteur));
       }
-	 
-	 etat_moteur_precedent=true;  // mise a jour de l'état du moteur
-	 else {
-	 etat_moteur_precedent=false;  // mise a jour de l'état du moteur
-	 }
-   
-   
-   
-   
-   
-   
+
+      etat_moteur_precedent=true;                      // mise a jour de l'état du moteur
+    }
+    else {
+      etat_moteur_precedent=false;                     // mise a jour de l'état du moteur
+      moteur_1.writeMicroseconds(P_MOTEUR_INIT);       // arret du moteur
+    }
+
+
+
+
+
+
     /*
      changement a la volée des paramétres Kp Ki Kd etat_moteur
      */
@@ -306,7 +309,7 @@ void loop() {
       // read the incoming byte:
 
       int incomingByte = Serial.read();
-      
+
       switch ((char)incomingByte) {
 
       case 'p':                                      // selection du coefficient proportionnel
@@ -321,9 +324,13 @@ void loop() {
       case 'v':
         selection_coeff=3;                          // réglage de la vitesse de base du moteur
         break;
-	  case 'o':
-	    selection_coeff=4;                          // mise en marche  et arrêt du système
-		break;                                      // "on" "off"
+      case 'o':
+        etat_moteur=!etat_moteur;                     // mise en marche  et arrêt du système
+        if (etat_moteur)
+           Serial.println("etat moteur : ON");        // "on" "off"
+        else
+           Serial.println("etat moteur : OFF");                                
+        break;                                      
       case '0':
         mon_buffer_serie+='0';                      // mise en mémoire des charactères "123456789.-"
         break;
@@ -369,9 +376,9 @@ void loop() {
       case'w':                                  // écrit le coeff courant "write"
         {
           mon_buffer_serie+="y";
-          
-		  // conversion  de la chaine de caractère en double
-		  char *endp;
+
+          // conversion  de la chaine de caractère en double
+          char *endp;
           char buf[mon_buffer_serie.length()];
           mon_buffer_serie.toCharArray(buf,mon_buffer_serie.length());
           double coeff=strtod(buf,&endp);       
@@ -391,10 +398,8 @@ void loop() {
             break;
           case 3:
             Serial.println("vitesse moteur:"+mon_buffer_serie);
-            p_moteur=coeff;
+            p_moteurs=coeff;
             break;
-	      case 4:
-		    etat_moteur=!etat_moteur;
           default:
             delayMicroseconds(1);
           }
@@ -416,6 +421,7 @@ void loop() {
     digitalWrite(LED_PIN, blinkState);
   }
 }
+
 
 
 
