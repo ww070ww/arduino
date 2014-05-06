@@ -130,7 +130,7 @@ void setup() {
   // Initialisation des paramètres du moteur
 
   moteur_1.attach(pin_moteur_1);        
-  moteur_1.writeMicroseconds(p_moteurs);
+  moteur_1.writeMicroseconds(P_MOTEUR_INIT);
 
   delay(100);
 
