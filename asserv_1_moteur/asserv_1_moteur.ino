@@ -43,8 +43,10 @@ MPU6050 mpu;
 
 
 
-
+#define P_MOTEUR_INIT 800 // impulsion minimum du variateur en us
 #define LED_PIN 13 // (Arduino is 13, Teensy is 11, Teensy++ is 6)
+
+
 bool blinkState = false;
 
 // MPU control/status vars
@@ -57,27 +59,30 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 // orientation/motion vars
 Quaternion q;           // [w, x, y, z]         quaternion container
-VectorInt16 aa;         // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
+//VectorInt16 aa;         // [x, y, z]            accel sensor measurements
+//VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
+//VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-float euler[3];         // [psi, theta, phi]    Euler angle container
+//float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
 // mes variables
-double pitch_mesure = 0; //input PID
-double pitch_consigne= 0; // setpoint PID
+double pitch_mesure = 0;    //input PID valeur du capteur
+double pitch_consigne= 0;   // setpoint PID valeur de consigne 
 
 Servo moteur_1;             // commande des moteurs
 int pin_moteur_1=5;
-int p_moteurs=800;   // valeur de la largeur impulsion entre 800 et 1900us
-double deltaP_moteur=0;  // valeur de la correction si erreur ouput PID
+int p_moteurs=P_MOTEUR_INIT;          // valeur de la largeur impulsion entre 800 et 1900us
+double deltaP_moteur=0;     // valeur de la correction si erreur ouput PID
 
 
 double Kp = 0.7;
 double Ki = 0.2;
 double Kd = 0.2;
 
+// état du moteur arrêté ou en marche
+bool etat_moteur=false;
+bool etat_moteur_precedent=false;
 
 // variables permettant le changement des coefficients du correcteur
 
@@ -87,7 +92,7 @@ int count_println =0;
 int nb_println=100;
 
 
-//Specify the links and initial tuning parameters
+// déclaration du PID avec valeurs initiales
 PID myPID(&pitch_mesure, &deltaP_moteur, &pitch_consigne,Kp,Ki,Kd, DIRECT);
 
 
@@ -260,11 +265,41 @@ void loop() {
       Serial.println(pitch_consigne-pitch_mesure);
       count_println=0;
     }
+   /*
+   commande du moteur en fonction de l'erreur mesurée
+   */
+   if (etat_moteur) {
+     if (!etat_moteur_precedent) {              // on va a la vitesse de consigne en utilisant une rampe
+	     int p_moteurs_temp=P_MOTEUR_INIT; 
+		 while (p_moteur_temp<=p_moteur) {
+		     moteur_1.writeMicroseconds(p_moteur_temp);
+			 p_moteur_temp+=50;
+			 delayMicroseconds(1000);
+			 }
+			 
+		 }
+	 /*
+	 application de la correction
+	 */
+	 if (deltaP_moteur>0) {
+        moteur_1.writeMicroseconds(p_moteurs+abs(deltaP_moteur));
+      }
+      else {
+        moteur_1.writeMicroseconds(p_moteurs-abs(deltaP_moteur));
+      }
+	 
+	 etat_moteur_precedent=true;  // mise a jour de l'état du moteur
+	 else {
+	 etat_moteur_precedent=false;  // mise a jour de l'état du moteur
+	 }
+   
+   
+   
+   
    
    
     /*
-
-     changement a la volee de coefficient Kp Ki et Kd
+     changement a la volée des paramétres Kp Ki Kd etat_moteur
      */
 
     if (Serial.available() > 0) {
@@ -286,6 +321,9 @@ void loop() {
       case 'v':
         selection_coeff=3;                          // réglage de la vitesse de base du moteur
         break;
+	  case 'o':
+	    selection_coeff=4;                          // mise en marche  et arrêt du système
+		break;                                      // "on" "off"
       case '0':
         mon_buffer_serie+='0';                      // mise en mémoire des charactères "123456789.-"
         break;
@@ -355,6 +393,8 @@ void loop() {
             Serial.println("vitesse moteur:"+mon_buffer_serie);
             p_moteur=coeff;
             break;
+	      case 4:
+		    etat_moteur=!etat_moteur;
           default:
             delayMicroseconds(1);
           }
