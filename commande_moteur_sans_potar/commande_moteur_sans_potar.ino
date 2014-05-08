@@ -26,6 +26,7 @@ void setup() {
   Serial.begin(115200);
   moteur.attach(PWM_PIN);
   moteur.writeMicroseconds(P_MOTEUR_INIT);
+  Serial.println("initialisation arduino");
   delay(10);
 
 
@@ -42,10 +43,10 @@ void loop() {
       int impulsion_temp=P_MOTEUR_INIT; 
       while (impulsion_temp<=impulsion) {
         moteur.writeMicroseconds(impulsion_temp);
-        impulsion_temp+=50;
-        delayMicroseconds(1000);
+        impulsion_temp+=5;
+        delay(30);
       }
-
+      Serial.println("vitesse max atteinte!");
     }
 
     moteur.writeMicroseconds(impulsion);
@@ -154,4 +155,5 @@ void loop() {
 
 
 }
+
 
