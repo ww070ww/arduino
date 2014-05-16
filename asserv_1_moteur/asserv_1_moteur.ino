@@ -319,10 +319,14 @@ void loop() {
         break;
       case 'o':
         etat_moteur=!etat_moteur;                     // mise en marche  et arrêt du système
-        if (etat_moteur)
+        if (etat_moteur) {
            Serial.println("etat moteur : ON");        // "on" "off"
-        else
-           Serial.println("etat moteur : OFF");                                
+		   myPID.SetMode(AUTOMATIC);
+		   }
+        else {
+           Serial.println("etat moteur : OFF");
+           myPID.SetMode(MANUAL);
+           }		   
         break;                                      
       case '0':
         mon_buffer_serie+='0';                      // mise en mémoire des charactères "123456789.-"
