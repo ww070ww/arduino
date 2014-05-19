@@ -43,9 +43,9 @@ MPU6050 mpu;
 
 
 
-#define P_MOTEUR_INIT 800 // impulsion minimum du variateur en us
-#define LED_PIN 13 // (Arduino is 13, Teensy is 11, Teensy++ is 6)
-
+#define P_MOTEUR_INIT 800      // impulsion minimum du variateur en us
+#define LED_PIN 13             // (Arduino is 13, Teensy is 11, Teensy++ is 6)
+#define PID_LIMIT 200
 
 bool blinkState = false;
 
@@ -76,9 +76,9 @@ int p_moteurs=960;          // valeur de la largeur impulsion entre 800 et 1900u
 double deltaP_moteur=0;     // valeur de la correction si erreur ouput PID
 
 
-double Kp = 1;
-double Ki = 0.4;
-double Kd = 0.2;
+double Kp = 4;
+double Ki = 2.5;
+double Kd = 0.5;
 
 // état du moteur arrêté ou en marche
 bool etat_moteur=false;
@@ -132,11 +132,11 @@ void setup() {
   moteur_1.attach(pin_moteur_1);        
   moteur_1.writeMicroseconds(P_MOTEUR_INIT);
 
-  delay(100);
+  delay(10);
 
   // initialisation du PID
 
-  myPID.SetOutputLimits(-100, 100); // borne sup et inf du correcteur
+  myPID.SetOutputLimits(-PID_LIMIT, PID_LIMIT); // borne sup et inf du correcteur
 
   //turn the PID on
   myPID.SetMode(AUTOMATIC);
