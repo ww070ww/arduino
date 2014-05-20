@@ -76,7 +76,7 @@ Servo moteur_2;
 int pin_moteur_1=5;
 int pin_moteur_2=6;
 int p_moteurs=P_MOTEUR_INIT;        // valeur de la largeur impulsion entre 800 et 1900us 
-int offset_moteurs=0;                // (valeur de base qui est modulé par le correcteur)
+int offset_moteurs=300;                // (valeur de base qui est modulé par le correcteur)
 double deltaP_moteur=0;             // valeur de la correction si erreur ouput PID
 
 
@@ -87,6 +87,10 @@ double Kd = 0.5;
 // état du moteur arrêté ou en marche
 bool etat_moteur=false;
 bool etat_moteur_precedent=false;
+
+
+// réglage offset
+bool reglage_offset=false;
 
 // variables permettant le changement des coefficients du correcteur
 
@@ -268,29 +272,46 @@ void loop() {
    commande du moteur en fonction de l'erreur mesurée
      */
     if (etat_moteur) {
-      if (!etat_moteur_precedent) {              // on va a la vitesse de consigne en utilisant une rampe
-        int p_moteurs_temp=P_MOTEUR_INIT; 
-        while (p_moteurs_temp<=p_moteurs) {
-          moteur_1.writeMicroseconds(p_moteurs_temp);
-          moteur_2.writeMicroseconds(p_moteurs_temp+offset_moteurs);
-          p_moteurs_temp+=50;
-          delay(1);
+      if (!reglage_offset) {
+        if (!etat_moteur_precedent) {              // on va a la vitesse de consigne en utilisant une rampe
+          int p_moteurs_temp=P_MOTEUR_INIT; 
+          while ((p_moteurs_temp<=p_moteurs+offset_moteurs)||(p_moteurs_temp<=p_moteurs)) {
+            moteur_1.writeMicroseconds(p_moteurs_temp);
+            moteur_2.writeMicroseconds(p_moteurs_temp+offset_moteurs);
+            p_moteurs_temp+=20;
+            delay(1);
+          }
+          Serial.println("vitesse atteinte");
+        }
+        /*
+	 application de la correction
+         	 */
+        if (deltaP_moteur>0) {
+          moteur_1.writeMicroseconds(p_moteurs+abs(deltaP_moteur));
+          moteur_2.writeMicroseconds(p_moteurs+offset_moteurs);
+        }
+        else {
+          moteur_1.writeMicroseconds(p_moteurs);
+          moteur_2.writeMicroseconds(p_moteurs+abs(deltaP_moteur)+offset_moteurs);
         }
 
-      }
-      /*
-	 application de la correction
-       	 */
-      if (deltaP_moteur>0) {
-        moteur_1.writeMicroseconds(p_moteurs+abs(deltaP_moteur));
-        moteur_2.writeMicroseconds(p_moteurs+offset_moteurs);
+        etat_moteur_precedent=true;                      // mise a jour de l'état du moteur
       }
       else {
+        if (!etat_moteur_precedent) {              // on va a la vitesse de consigne en utilisant une rampe
+          int p_moteurs_temp=P_MOTEUR_INIT; 
+          while ((p_moteurs_temp<=p_moteurs+offset_moteurs)||(p_moteurs_temp<=p_moteurs)) {
+            moteur_1.writeMicroseconds(p_moteurs_temp);
+            moteur_2.writeMicroseconds(p_moteurs_temp+offset_moteurs);
+            p_moteurs_temp+=20;            
+            delay(1);
+          }
+          Serial.println("vitesse atteinte");
+        }
         moteur_1.writeMicroseconds(p_moteurs);
-        moteur_2.writeMicroseconds(p_moteurs+abs(deltaP_moteur)+offset_moteurs);
+        moteur_2.writeMicroseconds(p_moteurs+offset_moteurs);
+        etat_moteur_precedent=true;
       }
-
-      etat_moteur_precedent=true;                      // mise a jour de l'état du moteur
     }
     else {
       etat_moteur_precedent=false;                     // mise a jour de l'état du moteur
@@ -339,7 +360,16 @@ void loop() {
           Serial.println("etat moteur : OFF");
           myPID.SetMode(MANUAL);
         }		   
-        break;                                      
+        break;
+      case 'r':
+        reglage_offset=!reglage_offset;                     // mise en marche  et arrêt du système
+        if (reglage_offset) {
+          Serial.println("reglage offset : ON");        // "on" "off"
+        }
+        else {
+          Serial.println("reglage offset : OFF");
+        }		   
+        break;              
       case '0':
         mon_buffer_serie+='0';                      // mise en mémoire des charactères "123456789.-"
         break;
@@ -434,6 +464,10 @@ void loop() {
     digitalWrite(LED_PIN, blinkState);
   }
 }
+
+
+
+
 
 
 
