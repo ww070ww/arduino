@@ -70,10 +70,14 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 double pitch_mesure = 0;    //input PID valeur du capteur
 double pitch_consigne= 0;   // setpoint PID valeur de consigne 
 
+// variable des moteurs
 Servo moteur_1;             // commande des moteurs
+Servo moteur_2;
 int pin_moteur_1=5;
-int p_moteurs=960;          // valeur de la largeur impulsion entre 800 et 1900us
-double deltaP_moteur=0;     // valeur de la correction si erreur ouput PID
+int pin_moteur_2=6;
+int p_moteurs=P_MOTEUR_INIT;        // valeur de la largeur impulsion entre 800 et 1900us 
+int offset_moteurs=0;                // (valeur de base qui est modulé par le correcteur)
+double deltaP_moteur=0;             // valeur de la correction si erreur ouput PID
 
 
 double Kp = 4;
@@ -131,7 +135,8 @@ void setup() {
 
   moteur_1.attach(pin_moteur_1);        
   moteur_1.writeMicroseconds(P_MOTEUR_INIT);
-
+  moteur_2.attach(pin_moteur_2);        
+  moteur_2.writeMicroseconds(P_MOTEUR_INIT);
   delay(10);
 
   // initialisation du PID
@@ -149,7 +154,7 @@ void setup() {
   Serial.println(F("Testing device connections..."));
   Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
- 
+
   // load and configure the DMP
   Serial.println(F("Initializing DMP..."));
   devStatus = mpu.dmpInitialize();
@@ -267,6 +272,7 @@ void loop() {
         int p_moteurs_temp=P_MOTEUR_INIT; 
         while (p_moteurs_temp<=p_moteurs) {
           moteur_1.writeMicroseconds(p_moteurs_temp);
+          moteur_2.writeMicroseconds(p_moteurs_temp+offset_moteurs);
           p_moteurs_temp+=50;
           delay(1);
         }
@@ -277,16 +283,19 @@ void loop() {
        	 */
       if (deltaP_moteur>0) {
         moteur_1.writeMicroseconds(p_moteurs+abs(deltaP_moteur));
+        moteur_2.writeMicroseconds(p_moteurs+offset_moteurs);
       }
       else {
-        moteur_1.writeMicroseconds(p_moteurs-abs(deltaP_moteur));
+        moteur_1.writeMicroseconds(p_moteurs);
+        moteur_2.writeMicroseconds(p_moteurs+abs(deltaP_moteur)+offset_moteurs);
       }
 
       etat_moteur_precedent=true;                      // mise a jour de l'état du moteur
     }
     else {
       etat_moteur_precedent=false;                     // mise a jour de l'état du moteur
-      moteur_1.writeMicroseconds(P_MOTEUR_INIT);       // arret du moteur
+      moteur_1.writeMicroseconds(P_MOTEUR_INIT);       // arret du moteurs
+      moteur_2.writeMicroseconds(P_MOTEUR_INIT);
     }
 
 
@@ -317,16 +326,19 @@ void loop() {
       case 'v':
         selection_coeff=3;                          // réglage de la vitesse de base du moteur
         break;
+      case 'f':
+        selection_coeff=4;                          // réglage de offset
+        break;
       case 'o':
         etat_moteur=!etat_moteur;                     // mise en marche  et arrêt du système
         if (etat_moteur) {
-           Serial.println("etat moteur : ON");        // "on" "off"
-		   myPID.SetMode(AUTOMATIC);
-		   }
+          Serial.println("etat moteur : ON");        // "on" "off"
+          myPID.SetMode(AUTOMATIC);
+        }
         else {
-           Serial.println("etat moteur : OFF");
-           myPID.SetMode(MANUAL);
-           }		   
+          Serial.println("etat moteur : OFF");
+          myPID.SetMode(MANUAL);
+        }		   
         break;                                      
       case '0':
         mon_buffer_serie+='0';                      // mise en mémoire des charactères "123456789.-"
@@ -397,6 +409,10 @@ void loop() {
             Serial.println("vitesse moteur:"+mon_buffer_serie);
             p_moteurs=coeff;
             break;
+          case 4:
+            Serial.println("offset du moteur:"+mon_buffer_serie);
+            offset_moteurs=coeff;
+            break;
           default:
             delayMicroseconds(1);
           }
@@ -418,6 +434,7 @@ void loop() {
     digitalWrite(LED_PIN, blinkState);
   }
 }
+
 
 
 
