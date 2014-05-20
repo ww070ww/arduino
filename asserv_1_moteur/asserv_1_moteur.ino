@@ -268,7 +268,7 @@ void loop() {
         while (p_moteurs_temp<=p_moteurs) {
           moteur_1.writeMicroseconds(p_moteurs_temp);
           p_moteurs_temp+=50;
-          delayMicroseconds(1000);
+          delay(1);
         }
 
       }
