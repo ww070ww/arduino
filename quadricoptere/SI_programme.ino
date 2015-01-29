@@ -25,22 +25,8 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 // orientation/motion vars
 Quaternion q;           // [w, x, y, z]         quaternion container
-VectorInt16 aa;         // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-
-// packet structure for InvenSense teapot demo
-uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-
-
-volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
-void dmpDataReady() {
-    mpuInterrupt = true;
-}
-
 
 void setup() {
 
@@ -52,8 +38,34 @@ void setup() {
     delay(2000);
     moteur2.writeMicroseconds(900);
     delay(2000);
+    init_accelero();
  
-    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    
+}
+
+void loop() {
+
+ 
+    
+    
+       
+    Serial.println(getAngle());
+    
+    moteur1.writeMicroseconds(1200);
+    moteur2.writeMicroseconds(1200);
+    delay(3000);
+    
+    if ((ypr[1] * 180/M_PI) < -9)
+     moteur2.writeMicroseconds(1200);
+    delay(900);
+    if ((ypr[1] * 180/M_PI) > 9)
+    moteur1.writeMicroseconds(1300);
+    delay(900); 
+  
+    }
+    
+void init_accelero() {
+   #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
         Wire.begin();
         TWBR = 24; 
     #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
@@ -104,14 +116,12 @@ void setup() {
 
     // configure LED for output
     pinMode(LED_PIN, OUTPUT);
+
+   }
 }
 
-void loop() {
-
- 
-    // reset interrupt flag and get INT_STATUS byte
-    mpuInterrupt = false;
-    mpuIntStatus = mpu.getIntStatus();
+float getAngle() {
+   mpuIntStatus = mpu.getIntStatus();
 
     // get current FIFO count
     fifoCount = mpu.getFIFOCount();
@@ -131,30 +141,11 @@ void loop() {
         mpu.getFIFOBytes(fifoBuffer, packetSize);
         fifoCount -= packetSize;
         
-        #ifdef OUTPUT_READABLE_YAWPITCHROLL
-            // display Euler angles in degrees
-            mpu.dmpGetQuaternion(&q, fifoBuffer);
-            mpu.dmpGetGravity(&gravity, &q);
-            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-            Serial.print("ypr\t");
-            Serial.print(ypr[0] * 180/M_PI);
-            Serial.print("\t");
-            Serial.print(ypr[1] * 180/M_PI);
-            Serial.print("\t");
-            Serial.println(ypr[2] * 180/M_PI);
-        #endif
-       
+        
+        mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+        
+        return (ypr[1] * 180/M_PI);
 
-    moteur1.writeMicroseconds(1200);
-    moteur2.writeMicroseconds(1200);
-    delay(3000);
-    
-    if ((ypr[1] * 180/M_PI) < -9)
-     moteur2.writeMicroseconds(1200);
-    delay(900);
-    if ((ypr[1] * 180/M_PI) > 9)
-    moteur1.writeMicroseconds(1300);
-    delay(900); 
-  
-    }
 }
